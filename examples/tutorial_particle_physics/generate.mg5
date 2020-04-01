@@ -1,0 +1,6 @@
+import model EWdim6-full
+generate p p > h > j j z z QCD=0 QED=99 NP=2, z > e+ e-, z > mu+ mu- QCD=0 QED=99 NP=0
+add process p p > h > j j z z QCD=0 QED=99 NP=2, z > e+ e-, z > e+ e- QCD=0 QED=99 NP=0
+add process p p > h > j j z z QCD=0 QED=99 NP=2, z > mu+ mu-, z > mu+ mu- QCD=0 QED=99 NP=0
+
+output ./mg_processes/signal_pythia2

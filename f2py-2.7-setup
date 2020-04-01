@@ -1,0 +1,28 @@
+#!/bin/bash
+
+PATCH_DIR=/home/llr/cms/rembser/share
+
+# Create the temporary patch file
+echo '--- f2py	2018-04-11 01:40:20.000000000 +0200
++++ f2py	2020-03-11 14:57:48.098895000 +0100
+@@ -1,6 +1,9 @@
+-#!/usr/bin/python
++#!/usr/bin/python2
+ # See http://cens.ioc.ee/projects/f2py2e/
+ import os, sys
++
++sys.path = [p for p in sys.path if not "3" in p]
++
+ for mode in ["g3-numpy", "2e-numeric", "2e-numarray", "2e-numpy"]:
+     try:
+         i=sys.argv.index("--"+mode)' > _f2py.patch
+
+# Copy f2py file and patch it for python2
+cp /usr/bin/f2py .
+patch f2py _f2py.patch
+rm _f2py.patch
+
+# Make sure ~/bin exists and move the patched f2py in there
+mkdir -p $HOME/bin
+mv f2py $HOME/bin/f2py-2.7
+echo "Moved f2py into $HOME/bin"
