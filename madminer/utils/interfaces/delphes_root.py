@@ -122,6 +122,212 @@ def parse_delphes_root_file(
             }
         )
 
+        #find same flavour opposite sign lepton pairs,
+        #given the list of electrons or muon in an event
+        def find_SFOS(cand_list, part_list, idxlists=False):
+            #positively and negatively charged leptons
+            cand_pos = []
+            cand_neg = []
+            for idx, (is_cand, part) in enumerate(zip(cand_list, part_list)):
+                if is_cand != 0:
+                    if part.charge > 0:
+                        cand_pos.append(idx)
+                    if part.charge < 0:
+                        cand_neg.append(idx)
+            #the max number of SFOS pairs is
+            nmax_sfos = min(len(cand_pos), len(cand_neg))
+            if idxlists == False:
+                return nmax_sfos
+            else:
+                return nmax_sfos, cand_pos, cand_neg
+
+
+        def check_ZZ_cand(cand_e, part_e, cand_m, part_m, nSFOS):
+            #if at least 2 sfos
+            if find_SFOS(cand_e, part_e) + find_SFOS(cand_m, part_m) >= nSFOS:
+                return True
+            else:
+                return False
+
+        candidate_es = np.ones_like(objects["e"])
+        candidate_mus = np.ones_like(objects["mu"])
+        isZZcand = False
+
+        #find candidate leptons
+        if check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=2) == True:
+            #if eta and pt cuts
+            for idx, el in enumerate(objects["e"]):
+                if not (abs(el.eta) < 2.5 and el.pt > 7):
+                    candidate_es[idx] = 0
+            for idx, mu in enumerate(objects["mu"]):
+                if not (abs(mu.eta) < 2.4 and mu.pt > 5):
+                    candidate_mus[idx] = 0
+
+        #find Z candidates
+        if check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=2) == True:
+            #Z1
+            isZ1e = -99
+            idxl1 = -99
+            idxl2 = -99
+
+            #electrons
+            nmax_e_sfos, cand_e_pos, cand_e_neg = find_SFOS(candidate_es, objects["e"], idxlists=True)
+            short_idx_cand_e = min([cand_e_pos, cand_e_neg])
+            long_idx_cand_e = max([cand_e_pos, cand_e_neg])
+
+            possible_z1_e = []
+            for idx1 in short_idx_cand_e:
+                el1 = (objects["e"])[idx1]
+                for idx2 in long_idx_cand_e:
+                    el2 = (objects["e"])[idx2]
+                    #calculate stuff
+                    mz1 = (el1+el2).m
+                    if(((el1.pt > 20 and el2.pt > 10) or (el2.pt > 20 and el1.pt > 10))
+                        and mz1 > 60):
+                        possible_z1_e.append([idx1, idx2, mz1])
+
+            m_poss_z1_e = [item[2] for item in possible_z1_e]
+            best_m_e = min(m_poss_z1_e, key=lambda x:abs(x-91.2))
+            idx_m_e = m_poss_z1_e.index(best_m_e)
+            idx_m_e1 = m_poss_z1_e[idx_me][1]
+
+            #muons
+            nmax_mu_sfos, cand_mu_pos, cand_mu_neg = find_SFOS(candidate_mus, objects["mu"], idxlists=True)
+            short_idx_cand_mu = min([cand_mu_pos, cand_mu_neg])
+            long_idx_cand_mu = max([cand_mu_pos, cand_mu_neg])
+
+            possible_z1_mu = []
+            for idx1 in short_idx_cand_mu:
+                mu1 = (objects["mu"])[idx1]
+                for idx2 in long_idx_cand_mu:
+                    mu2 = (objects["mu"])[idx2]
+                    #calculate stuff
+                    mz1 = (mu1+mu2).m
+                    if(((mu1.pt > 20 and mu2.pt > 10) or (mu2.pt > 20 and mu1.pt > 10))
+                        and mz1 > 60):
+                        possible_z1_mu.append([idx1, idx2, mz1])
+
+            m_poss_z1_mu = [item[2] for item in possible_z1_mu]
+            best_m_mu = min(m_poss_z1_mu, key=lambda x:abs(x-91.2))
+            idx_m_mu = m_poss_z1_mu.index(best_m_mu)
+
+            #choose best z1 candidate (mass closest to Z)
+            #save the z1 candidates indices
+            #set to 0 the chosen z1 candidates, so they will not be available for z2
+
+            #if candidate SFOS is mu+mu-
+            if(abs(best_m_mu-91.2) < abs(best_m_e-91.2)):
+                isZ1e = 0
+                idxl1 = possible_z1_mu[idx_m_mu][0]
+                idxl2 = possible_z1_mu[idx_m_mu][1]
+                candidate_mus[idxl1] = 0
+                candidate_mus[idxl2] = 0
+                lep1 = (objects["mu"])[idxl1]
+                lep2 = (objects["mu"])[idxl2]
+            #if candidate SFOS is e+e-
+            else:
+                isZ1e = 1
+                idxl1 = possible_z1_e[idx_m_e][0]
+                idxl2 = possible_z1_e[idx_m_e][1]
+                candidate_es[idxl1] = 0
+                candidate_es[idxl2] = 0
+                lep1 = (objects["e"])[idxl1]
+                lep2 = (objects["e"])[idxl2]
+
+
+        if idxl1 != -99 and idxl2 != -99 and check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=1) == True:
+            #Z2
+            isZ2e = -99
+            idxl3 = -99
+            idxl4 = -99
+
+
+            #electrons
+            nmax_e_sfos, cand_e_pos, cand_e_neg = find_SFOS(candidate_es, objects["e"], idxlists=True)
+            short_idx_cand_e = min([cand_e_pos, cand_e_neg])
+            long_idx_cand_e = max([cand_e_pos, cand_e_neg])
+
+            possible_z2_e = []
+
+            for idx3 in short_idx_cand_e:
+                el3 = (objects["e"])[idx3]
+                for idx4 in long_idx_cand_e:
+                    el4 = (objects["e"])[idx4]
+                    #calculate stuff
+                    mz2 = (el3+el4).m
+                    mzz = (lep1+lep1+el3+el4).m
+                    if(mz2 > 12 and mzz > 100 and mzz < 150):
+                        possible_z2_e.append([idx3, idx4, el3.pt+el4.pt])
+
+            #choose z2 from electrons with highest pt
+            pt_poss_z2_e = [item[2] for item in possible_z2_e]
+            best_pt_e = max(pt_poss_z2_e)
+            idx_pt_e = pt_poss_z2_e.index(best_pt_e)
+
+
+            #muons
+            nmax_mu_sfos, cand_mu_pos, cand_mu_neg = find_SFOS(candidate_mus, objects["mu"], idxlists=True)
+            short_idx_cand_mu = min([cand_mu_pos, cand_mu_neg])
+            long_idx_cand_mu = max([cand_mu_pos, cand_mu_neg])
+
+            possible_z2_mu = []
+
+            for idx3 in short_idx_cand_mu:
+                mu3 = (objects["mu"])[idx3]
+                for idx4 in long_idx_cand_mu:
+                    mu4 = (objects["mu"])[idx4]
+                    #calculate stuff
+                    mz2 = (mu3+mu4).m
+                    mzz = (lep1+lep1+mu3+mu4).m
+                    if(mz2 > 12 and mzz > 100 and mzz < 150):
+                        possible_z2_mu.append([idx3, idx4, mu3.pt+mu4.pt])
+
+            #choose z2 from muons with highest pt
+            pt_poss_z2_mu = [item[2] for item in possible_z2_mu]
+            best_pt_mu = max(pt_poss_z2_mu)
+            idx_pt_mu = pt_poss_z2_mu.index(best_pt_mu)
+
+
+            #choose best z2 candidate (highest pt)
+            #save the z2 candidates indices
+            #set to 0 the chosen z2 candidates, so they will not be available for z2
+
+            #if candidate SFOS is mu+mu-
+            if(best_pt_mu > best_pt_e):
+                isZ2e = 0
+                idxl3 = possible_z2_mu[idx_pt_mu][0]
+                idxl4 = possible_z2_mu[idx_pt_mu][1]
+                candidate_mus[idxl3] = 0
+                candidate_mus[idxl4] = 0
+                lep3 = (objects["mu"])[idxl3]
+                lep4 = (objects["mu"])[idxl4]
+                isZZcand = True
+            #if candidate SFOS is e+e-
+            else:
+                isZ2e = 1
+                idxl3 = possible_z2_e[idx_pt_e][0]
+                idxl4 = possible_z2_e[idx_pt_e][1]
+                candidate_es[idxl3] = 0
+                candidate_es[idxl4] = 0
+                lep3 = (objects["e"])[idxl3]
+                lep4 = (objects["e"])[idxl4]
+                isZZcand = True
+
+        #TODO
+        #iso cut
+        #primary vertex cut
+        #mz1,mz2
+
+        #update objects dictionary
+        objects.update(
+            {
+                "isZZcand": isZZcand,
+                "lep1ZZ": lep1,
+                "lep2ZZ": lep2,
+                "lep3ZZ": lep3,
+                "lep4ZZ": lep4,
+            }
+
         return objects
 
     # Observations
