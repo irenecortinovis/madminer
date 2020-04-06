@@ -35,7 +35,6 @@ def parse_delphes_root_file(
     """ Extracts observables and weights from a Delphes ROOT file """
 
     logger.debug("Parsing Delphes file %s", delphes_sample_file)
-
     if weight_labels is None:
         logger.debug("Not extracting weights")
     else:
@@ -97,6 +96,8 @@ def parse_delphes_root_file(
 
     # Prepare variables
     def get_objects(ievent):
+
+
         visible_momentum = MadMinerParticle()
         for p in (
             electrons_all_events[ievent]
@@ -128,7 +129,7 @@ def parse_delphes_root_file(
             #positively and negatively charged leptons
             cand_pos = []
             cand_neg = []
-            for idx, (is_cand, part) in enumerate(zip(cand_list, part_list)):
+            for idx, (is_cand, part) in enumerate(zip(cand_list, part_list)):	
                 if is_cand != 0:
                     if part.charge > 0:
                         cand_pos.append(idx)
@@ -149,9 +150,12 @@ def parse_delphes_root_file(
             else:
                 return False
 
-        candidate_es = np.ones_like(objects["e"])
-        candidate_mus = np.ones_like(objects["mu"])
-        isZZcand = False
+        candidate_es = np.ones(len(objects["e"]))
+        candidate_mus = np.ones(len(objects["mu"]))
+        isZZcand = 0
+        isZ1e = isZ2e = -99
+        idxl1 = idxl2 = idxl3 = idxl4 = -99
+        lep1 = lep2 = lep3 = lep4 = 0
 
         #find candidate leptons
         if check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=2) == True:
@@ -166,10 +170,6 @@ def parse_delphes_root_file(
         #find Z candidates
         if check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=2) == True:
             #Z1
-            isZ1e = -99
-            idxl1 = -99
-            idxl2 = -99
-
             #electrons
             nmax_e_sfos, cand_e_pos, cand_e_neg = find_SFOS(candidate_es, objects["e"], idxlists=True)
             short_idx_cand_e = min([cand_e_pos, cand_e_neg])
@@ -189,7 +189,6 @@ def parse_delphes_root_file(
             m_poss_z1_e = [item[2] for item in possible_z1_e]
             best_m_e = min(m_poss_z1_e, key=lambda x:abs(x-91.2))
             idx_m_e = m_poss_z1_e.index(best_m_e)
-            idx_m_e1 = m_poss_z1_e[idx_me][1]
 
             #muons
             nmax_mu_sfos, cand_mu_pos, cand_mu_neg = find_SFOS(candidate_mus, objects["mu"], idxlists=True)
@@ -237,11 +236,6 @@ def parse_delphes_root_file(
 
         if idxl1 != -99 and idxl2 != -99 and check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=1) == True:
             #Z2
-            isZ2e = -99
-            idxl3 = -99
-            idxl4 = -99
-
-
             #electrons
             nmax_e_sfos, cand_e_pos, cand_e_neg = find_SFOS(candidate_es, objects["e"], idxlists=True)
             short_idx_cand_e = min([cand_e_pos, cand_e_neg])
@@ -301,7 +295,7 @@ def parse_delphes_root_file(
                 candidate_mus[idxl4] = 0
                 lep3 = (objects["mu"])[idxl3]
                 lep4 = (objects["mu"])[idxl4]
-                isZZcand = True
+                isZZcand = 1
             #if candidate SFOS is e+e-
             else:
                 isZ2e = 1
@@ -311,7 +305,9 @@ def parse_delphes_root_file(
                 candidate_es[idxl4] = 0
                 lep3 = (objects["e"])[idxl3]
                 lep4 = (objects["e"])[idxl4]
-                isZZcand = True
+                isZZcand = 1
+	
+        logger.debug("Value of isZZcand: %d", isZZcand)
 
         #TODO
         #iso cut
@@ -327,6 +323,7 @@ def parse_delphes_root_file(
                 "lep3ZZ": lep3,
                 "lep4ZZ": lep4,
             }
+        )
 
         return objects
 
@@ -367,7 +364,7 @@ def parse_delphes_root_file(
         values_this_observable = np.array(values_this_observable, dtype=np.float)
         observable_values[obs_name] = values_this_observable
 
-        logger.debug("  First 10 values for observable %s:\n%s", obs_name, values_this_observable[:10])
+        logger.debug("  First 10 values for observableeeeee %s:\n%s", obs_name, values_this_observable[:10])
 
     # Cuts
     cut_values = []
