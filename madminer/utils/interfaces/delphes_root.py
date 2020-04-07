@@ -294,7 +294,7 @@ def parse_delphes_root_file(
                 #choose best z2 candidate (highest pt)
                 #save the z2 candidates indices
                 #set to 0 the chosen z2 candidates, so they will not be available for z2
-                if (idx_m_e != -1) or (idx_m_mu != -1): 
+                if (idx_pt_e != -1) or (idx_pt_mu != -1): 
                     #if candidate SFOS is mu+mu-
                     if(best_pt_mu > best_pt_e):
                         isZ2e = 0
