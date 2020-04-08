@@ -163,6 +163,8 @@ def parse_delphes_root_file(
         idxl1 = idxl2 = idxl3 = idxl4 = -99
         lep1 = lep2 = lep3 = lep4 = 0
 
+        print("number of leptons: ", len(objects["e"]), len(objects["mu"])) 
+
         #find candidate leptons
         if check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=2) == True:
             #if eta and pt cuts
@@ -176,8 +178,8 @@ def parse_delphes_root_file(
         #find Z candidates
         if check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=2) == True:
             #Z1
-            idx_m_mu = -1
-            idx_m_e = -1
+            idx_m_mu = idx_m_e = -1
+            best_m_e = best_m_mu = -1
 
             #electrons
             nmax_e_sfos, cand_e_pos, cand_e_neg = find_SFOS(candidate_es, objects["e"], idxlists=True)
@@ -248,16 +250,19 @@ def parse_delphes_root_file(
                     lep1 = (objects["e"])[idxl1]
                     lep2 = (objects["e"])[idxl2]
 
+            print("mz1: ", (lep1+lep2).m)
+
             #check if a SFOS pair candidate for z1 is found, and if there is still at least one possible SFOS pair (for Z2)
             if idxl1 != -99 and idxl2 != -99 and check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=1) == True:
                 #Z2
-                idx_pt_e = -1
-                idx_pt_mu = -1
+                idx_pt_e = idx_pt_mu = -1
+                best_pt_e = best_pt_mu = -1
 
                 #electrons
                 nmax_e_sfos, cand_e_pos, cand_e_neg = find_SFOS(candidate_es, objects["e"], idxlists=True)
                 possible_z2_e = []
                 if nmax_e_sfos >= 1:
+                    print("e z2 found")
                     for idx3 in cand_e_pos:
                         el3 = (objects["e"])[idx3]
                         for idx4 in cand_e_neg:
@@ -265,6 +270,7 @@ def parse_delphes_root_file(
                             #kinematical cuts
                             mz2 = (el3+el4).m
                             mzz = (lep1+lep1+el3+el4).m
+                            print("mz2: ", mz2, "; mzz: ", mzz)
                             if(mz2 > 12 and mzz > 100 and mzz < 150):
                                 possible_z2_e.append([idx3, idx4, el3.pt+el4.pt])
 
@@ -278,13 +284,15 @@ def parse_delphes_root_file(
                 nmax_mu_sfos, cand_mu_pos, cand_mu_neg = find_SFOS(candidate_mus, objects["mu"], idxlists=True)
                 possible_z2_mu = []
                 if nmax_mu_sfos >= 1:
-                    for idx3 in short_idx_cand_mu:
+                    print("mu z2 found")
+                    for idx3 in cand_mu_pos:
                         mu3 = (objects["mu"])[idx3]
-                        for idx4 in long_idx_cand_mu:
+                        for idx4 in cand_mu_neg:
                             mu4 = (objects["mu"])[idx4]
                             #calculate stuff
                             mz2 = (mu3+mu4).m
                             mzz = (lep1+lep1+mu3+mu4).m
+                            print("mz2: ", mz2, "; mzz: ", mzz)
                             if(mz2 > 12 and mzz > 100 and mzz < 150):
                                 possible_z2_mu.append([idx3, idx4, mu3.pt+mu4.pt])
 
@@ -294,6 +302,7 @@ def parse_delphes_root_file(
                     if best_pt_mu != -1:
                         idx_pt_mu = pt_poss_z2_mu.index(best_pt_mu)
 
+                print(possible_z2_e, possible_z2_mu)
 
                 #choose best z2 candidate (highest pt)
                 if (idx_pt_e != -1) or (idx_pt_mu != -1):
@@ -372,7 +381,7 @@ def parse_delphes_root_file(
         values_this_observable = np.array(values_this_observable, dtype=np.float)
         observable_values[obs_name] = values_this_observable
 
-        logger.debug("  First 10 values for observableeeeee %s:\n%s", obs_name, values_this_observable[:10])
+        logger.debug("  First 10 values for observable %s:\n%s", obs_name, values_this_observable[:10])
 
     # Cuts
     cut_values = []
