@@ -269,7 +269,7 @@ def parse_delphes_root_file(
                             el4 = (objects["e"])[idx4]
                             #kinematical cuts
                             mz2 = (el3+el4).m
-                            mzz = (lep1+lep1+el3+el4).m
+                            mzz = (lep1+lep2+el3+el4).m
                             print("mz2: ", mz2, "; mzz: ", mzz)
                             if(mz2 > 12 and mzz > 100 and mzz < 150):
                                 possible_z2_e.append([idx3, idx4, el3.pt+el4.pt])
@@ -291,7 +291,7 @@ def parse_delphes_root_file(
                             mu4 = (objects["mu"])[idx4]
                             #calculate stuff
                             mz2 = (mu3+mu4).m
-                            mzz = (lep1+lep1+mu3+mu4).m
+                            mzz = (lep1+lep2+mu3+mu4).m
                             print("mz2: ", mz2, "; mzz: ", mzz)
                             if(mz2 > 12 and mzz > 100 and mzz < 150):
                                 possible_z2_mu.append([idx3, idx4, mu3.pt+mu4.pt])
