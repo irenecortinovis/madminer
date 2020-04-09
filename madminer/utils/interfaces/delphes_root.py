@@ -227,25 +227,32 @@ def parse_delphes_root_file(
             #Z1 mass
             mz1 = (leps[0] + leps[1]).m
             if not mz1 > 40:
+                #print("fail mz1 mass cut")
                 return False
             #leptons pt
             leps_pt_sort = sorted(leps, key=lambda x:x.pt)
             if not (leps_pt_sort[0].pt > 20 and leps_pt_sort[1].pt > 10):
+                #print("fail leptons pt cut")
                 return False
             #OS invariant mass (pos, neg, pos, neg)
             mza = (leps[0]+leps[3]).m
             mzb = (leps[1]+leps[2]).m
             mz2 = (leps[2]+leps[3]).m
             if not (mza > 4 and mzb > 4 and mz2 > 4):
+                #print("fail os cut")
                 return False
             #4l invariant mass
             m4l = (leps[0]+leps[1]+leps[2]+leps[3]).m
+            #print("m4l: ", m4l)
             if not m4l>70:
+                #print("fail m4l cut")
                 return False
             #same flavour cut
             if isSF == True:
-                mz = 91.2
-                if not (abs(mza-mz) < abs(mz1-mz) and mzb < 12):
+                mz_pdg = 91.2
+                mzab_ord = [mza, mzb] if min([mza,mzb], key=lambda x:abs(x-mz_pdg)) == mza else [mzb,mza]
+                if (abs(mzab_ord[0]-mz_pdg) < abs(mz1-mz_pdg) and mzb < mzab_ord[0]):
+                    #print("fail SF cut")
                     return False
             #if candidate passes all cuts
             return True
@@ -257,7 +264,7 @@ def parse_delphes_root_file(
                 return ZZlist[0], flavourslist[0]
             else:
                 mz1list = []
-                for ZZ, flavours in zip(ZZlist,flavourslist):
+                for ZZcand, flavours in zip(ZZlist,flavourslist):
                     part_list1, part_list2 = set_flavours_lists(part_list_e, part_list_mu, flavours)
                     mz1 = (part_list1[ZZcand[0]] + part_list1[ZZcand[1]]).m
                     mz1list.append(mz1)
@@ -270,10 +277,10 @@ def parse_delphes_root_file(
         isZZcand = 0
         lep1 = 0; lep2 = 0; lep3 = 0; lep4 = 0
 
-        #list of candidates electrons/muons: 1 if candidate, 0 if
+        #list of candidates electrons/muons: 1 if candidate, 0 if not
         candidate_es = np.ones(len(objects["e"]))
         candidate_mus = np.ones(len(objects["mu"]))
-        print(len(objects["e"]), len(objects["mu"]))
+        #print(len(objects["e"]), len(objects["mu"]))
 
         #find candidate leptons: eta and pt cuts (to be checked)
         for idx, el in enumerate(objects["e"]):
@@ -325,7 +332,13 @@ def parse_delphes_root_file(
             lep1, lep2, lep3, lep4 = ZZidx_to_leps(ZZfinal, objects["e"], objects["mu"], flavours)
 
 
-        logger.debug("Value of isZZcand: %d", isZZcand)
+        #logger.debug("Value of isZZcand: %d", isZZcand)
+        #debugging
+        #if(len(ZZ_cand_ee_list) + len(ZZ_cand_mm_list) + len(ZZ_cand_em_list)) >= 1:
+            #if isZZcand != 1:
+                #print("at least 2 and 2 but no ZZ cand")
+            #else:
+                #print("ok candidate and found")
 
         #update objects dictionary
         objects.update(
