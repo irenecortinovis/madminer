@@ -148,11 +148,11 @@ def parse_delphes_root_file(
                     cand_neg.append(is_cand)
 
             z_cand_list = []
-            for candpair, pair in zip(itertools.product(cand_pos, cand_neg), iteritools.product(idx_pos, idx_neg)):
+            for candpair, pair in zip(itertools.product(cand_pos, cand_neg), itertools.product(idx_pos, idx_neg)):
                 iscand = candpair[0]*candpair[1] #1 only if both are candidates
                 #cut invariant mass
                 invm = (part_list[pair[0]] + part_list[pair[1]]).m
-                if invm < 120 and inv > 12:
+                if invm < 120 and invm > 12:
                     z_cand_list.append([pair[0],pair[1]])
 
             return z_cand_list #[[pos_idx,neg_idx], [pos_idx,neg_idx], ...]
@@ -161,7 +161,7 @@ def parse_delphes_root_file(
         #keep track of their different flavours
         #order of Z1 and Z2 is not important (each only counted once)
         def find_ZZ_cand(Z_cand_e_list, Z_cand_mu_list):
-            ZZ_cand_ee = ZZ_cand_mm = ZZ_cand_em = []
+            ZZ_cand_ee = []; ZZ_cand_mm = []; ZZ_cand_em = []
             #same flavour e
             for Zcand1,Zcand2 in itertools.product(Z_cand_e_list,Z_cand_e_list):
                 if not any(x in Zcand1 for x in Zcand2):
@@ -174,9 +174,7 @@ def parse_delphes_root_file(
 
             #different flavour
             for Zcand1,Zcand2 in itertools.product(Z_cand_e_list,Z_cand_mu_list):
-                if not any(x in Zcand1 for x in Zcand2):
-                    ZZ_cand_em.append([Zcand1[0], Zcand1[1], Zcand2[0], Zcand2[1]])
-
+                ZZ_cand_em.append([Zcand1[0], Zcand1[1], Zcand2[0], Zcand2[1]])
             return ZZ_cand_ee, ZZ_cand_mm, ZZ_cand_em
 
         #return the list of particles in the correct order:
@@ -197,13 +195,13 @@ def parse_delphes_root_file(
             else:
                 print("set_flavours_lists: flavour not valid: choose between ee, mm, em")
                 return
-        return part_list1, part_list2
+            return part_list1, part_list2
 
         #return the leptons corresponding to the index in ZZcand
         #taking into account the flavours
         def ZZidx_to_leps(ZZcand, part_list_e, part_list_mu, flavours):
             part_list1, part_list2 = set_flavours_lists(part_list_e, part_list_mu, flavours)
-            leps = [part_list1[ZZcand[0]], part_list1[ZZcand[1]], part_list2[ZZcand[2]] + part_list2[ZZcand[3]]]
+            leps = [part_list1[ZZcand[0]], part_list1[ZZcand[1]], part_list2[ZZcand[2]], part_list2[ZZcand[3]]]
             return leps
 
         #reorder the two Z in each pair: first the one with closest mass to Z
@@ -211,8 +209,8 @@ def parse_delphes_root_file(
         def Z1Z2_ordering(ZZcand, part_list_e, part_list_mu, flavours):
             leps = ZZidx_to_leps(ZZcand, part_list_e, part_list_mu, flavours)
             #compute invariant masses of each Z
-            mz_p1 = (leps[0]] + leps[1]]).m
-            mz_p2 = (leps[2]] + leps[3]]).m
+            mz_p1 = (leps[0] + leps[1]).m
+            mz_p2 = (leps[2] + leps[3]).m
             #order accordingly to closest mass to Z mass
             if min([mz_p1,mz_p2], key=lambda x:abs(x-91.2), default=-1) == mz_p1:
                 z1z2 = ZZcand
@@ -255,8 +253,8 @@ def parse_delphes_root_file(
         #choose ZZ candidate for which Z1 has mass closest to Z
         #keep track of the flavour of Z1 and Z2
         def choose_final_ZZ(ZZlist, part_list_e, part_list_mu, flavourslist):
-            if len(ZZ_list) == 1:
-                return ZZ_list[0], flavourslist[0]
+            if len(ZZlist) == 1:
+                return ZZlist[0], flavourslist[0]
             else:
                 mz1list = []
                 for ZZ, flavours in zip(ZZlist,flavourslist):
@@ -265,16 +263,17 @@ def parse_delphes_root_file(
                     mz1list.append(mz1)
                 mz1min = min(mz1list, key=lambda x:abs(x-91.2))
                 idx = mz1list.index(mz1min)
-                return ZZ_list[idx], flavourslist[idx]
+                return ZZlist[idx], flavourslist[idx]
 
         ##################### MAIN CODE TO FIND BEST ZZ CANDIDATE #####################
         #default values
         isZZcand = 0
-        lep1 = lep2 = lep3 = lep4 = 0
+        lep1 = 0; lep2 = 0; lep3 = 0; lep4 = 0
 
         #list of candidates electrons/muons: 1 if candidate, 0 if
         candidate_es = np.ones(len(objects["e"]))
         candidate_mus = np.ones(len(objects["mu"]))
+        print(len(objects["e"]), len(objects["mu"]))
 
         #find candidate leptons: eta and pt cuts (to be checked)
         for idx, el in enumerate(objects["e"]):
@@ -290,7 +289,7 @@ def parse_delphes_root_file(
 
         #find ZZ candidates
         ZZ_cand_ee_list, ZZ_cand_mm_list, ZZ_cand_em_list = find_ZZ_cand(e_Z_cand,mu_Z_cand)
-
+ 
         #initialise lists for ZZ candidates which pass cuts, and keep track of flavours
         ZZ_cands_final = []
         ZZ_cands_final_flavours = []
@@ -299,14 +298,14 @@ def parse_delphes_root_file(
         for ZZ_cand_ee in ZZ_cand_ee_list:
             ZZ_cand_ee, swapped = Z1Z2_ordering(ZZ_cand_ee, objects["e"], objects["mu"], flavours="ee")
             #apply cuts
-            if ZZ_cuts(ZZ_cand_ee, part_list_e, part_list_mu, flavours="ee", isSF=True) == True:
+            if ZZ_cuts(ZZ_cand_ee, objects["e"], objects["mu"], flavours="ee", isSF=True) == True:
                 ZZ_cands_final.append(ZZ_cand_ee)
                 ZZ_cands_final_flavours.append("ee")
         #same flavours, muons
         for ZZ_cand_mm in ZZ_cand_mm_list:
             ZZ_cand_mm, swapped = Z1Z2_ordering(ZZ_cand_mm, objects["e"], objects["mu"], flavours="mm")
             #apply cuts
-            if ZZ_cuts(ZZ_candfind_ZZ_cand_mm, part_list_e, part_list_mu, flavours="mm", isSF=True) == True:
+            if ZZ_cuts(ZZ_cand_mm, objects["e"], objects["mu"], flavours="mm", isSF=True) == True:
                 ZZ_cands_final.append(ZZ_cand_mm)
                 ZZ_cands_final_flavours.append("mm")
         #different flavours
@@ -314,7 +313,7 @@ def parse_delphes_root_file(
             ZZ_cand_em, swapped = Z1Z2_ordering(ZZ_cand_em, objects["e"], objects["mu"], flavours="em")
             #apply cuts, careful when swapping em/me
             flavours_OF = "em" if swapped==False else "me"
-            if ZZ_cuts(ZZ_cand_em, part_list_e, part_list_mu, flavours=flavours_OF, isSF=False) == True:
+            if ZZ_cuts(ZZ_cand_em, objects["e"], objects["mu"], flavours=flavours_OF, isSF=False) == True:
                 ZZ_cands_final.append(ZZ_cand_em)
                 ZZ_cands_final_flavours.append(flavours_OF)
 
