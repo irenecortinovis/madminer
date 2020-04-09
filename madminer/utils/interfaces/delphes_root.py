@@ -6,11 +6,14 @@ from collections import OrderedDict
 import uproot
 import os
 import logging
+import itertools
+
 
 from madminer.utils.particle import MadMinerParticle
 from madminer.utils.various import math_commands
 
 logger = logging.getLogger(__name__)
+import itertools
 
 
 def parse_delphes_root_file(
@@ -123,213 +126,207 @@ def parse_delphes_root_file(
             }
         )
 
+        ##################### PREPARE FUNCTIONS TO FIND BEST ZZ CANDIDATE #####################
+
         #find same flavour opposite sign lepton pairs,
         #given the list of electrons or muons in an event
-        #returns the number of possible SFOS pairs
-        #by setting idxlists=True, the function returns also
-        #the indices of the positive and negative leptons
-        def find_SFOS(cand_list, part_list, idxlists=False):
-            #positively and negatively charged leptons
+        #returns all possible SFOS pairs ([pos_idx, neg_idx],...)
+        #which satisfy invariant mass cuts
+        def find_Z_cand(cand_list, part_list):
+            #positively and negatively charged leptons, and their
+            idx_pos = []
             cand_pos = []
+            idx_neg = []
             cand_neg = []
             for idx, (is_cand, part) in enumerate(zip(cand_list, part_list)):
                 #checking if the lepton is a candidate
-                if is_cand != 0:
-                    if part.charge > 0:
-                        cand_pos.append(idx)
-                    if part.charge < 0:
-                        cand_neg.append(idx)
-            #the max number of SFOS pairs is
-            nmax_sfos = min(len(cand_pos), len(cand_neg))
-            if idxlists == False:
-                return nmax_sfos
-            else:
-                return nmax_sfos, cand_pos, cand_neg
+                if part.charge > 0:
+                    idx_pos.append(idx)
+                    cand_pos.append(is_cand)
+                if part.charge < 0:
+                    idx_neg.append(idx)
+                    cand_neg.append(is_cand)
 
-        #check whether there are at least 2 SFOS pairs (electrons or muons)
-        def check_ZZ_cand(cand_e, part_e, cand_m, part_m, nSFOS):
-            #if at least 2 sfos
-            if find_SFOS(cand_e, part_e) + find_SFOS(cand_m, part_m) >= nSFOS:
-                return True
+            z_cand_list = []
+            for candpair, pair in zip(itertools.product(cand_pos, cand_neg), iteritools.product(idx_pos, idx_neg)):
+                iscand = candpair[0]*candpair[1] #1 only if both are candidates
+                #cut invariant mass
+                invm = (part_list[pair[0]] + part_list[pair[1]]).m
+                if invm < 120 and inv > 12:
+                    z_cand_list.append([pair[0],pair[1]])
+
+            return z_cand_list #[[pos_idx,neg_idx], [pos_idx,neg_idx], ...]
+
+        #find pairs of SFOS pairs with no leptons in common
+        #keep track of their different flavours
+        #order of Z1 and Z2 is not important (each only counted once)
+        def find_ZZ_cand(Z_cand_e_list, Z_cand_mu_list):
+            ZZ_cand_ee = ZZ_cand_mm = ZZ_cand_em = []
+            #same flavour e
+            for Zcand1,Zcand2 in itertools.product(Z_cand_e_list,Z_cand_e_list):
+                if not any(x in Zcand1 for x in Zcand2):
+                    ZZ_cand_ee.append([Zcand1[0], Zcand1[1], Zcand2[0], Zcand2[1]])
+
+            #same flavour mu
+            for Zcand1,Zcand2 in itertools.product(Z_cand_mu_list,Z_cand_mu_list):
+                if not any(x in Zcand1 for x in Zcand2):
+                    ZZ_cand_mm.append([Zcand1[0], Zcand1[1], Zcand2[0], Zcand2[1]])
+
+            #different flavour
+            for Zcand1,Zcand2 in itertools.product(Z_cand_e_list,Z_cand_mu_list):
+                if not any(x in Zcand1 for x in Zcand2):
+                    ZZ_cand_em.append([Zcand1[0], Zcand1[1], Zcand2[0], Zcand2[1]])
+
+            return ZZ_cand_ee, ZZ_cand_mm, ZZ_cand_em
+
+        #return the list of particles in the correct order:
+        #first list with flavour of first Z, second flavour of second Z
+        def set_flavours_lists(part_list_e, part_list_mu, flavours):
+            if flavours == "ee":
+                part_list1 = part_list_e
+                part_list2 = part_list_e
+            elif flavours == "mm":
+                part_list1 = part_list_mu
+                part_list2 = part_list_mu
+            elif flavours == "em":
+                part_list1 = part_list_e
+                part_list2 = part_list_mu
+            elif flavours == "me":
+                part_list1 = part_list_mu
+                part_list2 = part_list_e
             else:
+                print("set_flavours_lists: flavour not valid: choose between ee, mm, em")
+                return
+        return part_list1, part_list2
+
+        #return the leptons corresponding to the index in ZZcand
+        #taking into account the flavours
+        def ZZidx_to_leps(ZZcand, part_list_e, part_list_mu, flavours):
+            part_list1, part_list2 = set_flavours_lists(part_list_e, part_list_mu, flavours)
+            leps = [part_list1[ZZcand[0]], part_list1[ZZcand[1]], part_list2[ZZcand[2]] + part_list2[ZZcand[3]]]
+            return leps
+
+        #reorder the two Z in each pair: first the one with closest mass to Z
+        #keep track of the possible swapping in case of different flavours
+        def Z1Z2_ordering(ZZcand, part_list_e, part_list_mu, flavours):
+            leps = ZZidx_to_leps(ZZcand, part_list_e, part_list_mu, flavours)
+            #compute invariant masses of each Z
+            mz_p1 = (leps[0]] + leps[1]]).m
+            mz_p2 = (leps[2]] + leps[3]]).m
+            #order accordingly to closest mass to Z mass
+            if min([mz_p1,mz_p2], key=lambda x:abs(x-91.2), default=-1) == mz_p1:
+                z1z2 = ZZcand
+                swapped = False
+            else:
+                z1z2 = [ZZcand[2],ZZcand[3],ZZcand[0],ZZcand[1]]
+                swapped = True
+            return(z1z2, swapped)
+
+        #apply cuts to ZZ candidate
+        #consider differently the case of same flavour ZZ
+        def ZZ_cuts(ZZcand, part_list_e, part_list_mu, flavours, isSF):
+            leps = ZZidx_to_leps(ZZcand, part_list_e, part_list_mu, flavours)
+            #Z1 mass
+            mz1 = (leps[0] + leps[1]).m
+            if not mz1 > 40:
                 return False
+            #leptons pt
+            leps_pt_sort = sorted(leps, key=lambda x:x.pt)
+            if not (leps_pt_sort[0].pt > 20 and leps_pt_sort[1].pt > 10):
+                return False
+            #OS invariant mass (pos, neg, pos, neg)
+            mza = (leps[0]+leps[3]).m
+            mzb = (leps[1]+leps[2]).m
+            mz2 = (leps[2]+leps[3]).m
+            if not (mza > 4 and mzb > 4 and mz2 > 4):
+                return False
+            #4l invariant mass
+            m4l = (leps[0]+leps[1]+leps[2]+leps[3]).m
+            if not m4l>70:
+                return False
+            #same flavour cut
+            if isSF == True:
+                mz = 91.2
+                if not (abs(mza-mz) < abs(mz1-mz) and mzb < 12):
+                    return False
+            #if candidate passes all cuts
+            return True
 
+        #choose ZZ candidate for which Z1 has mass closest to Z
+        #keep track of the flavour of Z1 and Z2
+        def choose_final_ZZ(ZZlist, part_list_e, part_list_mu, flavourslist):
+            if len(ZZ_list) == 1:
+                return ZZ_list[0], flavourslist[0]
+            else:
+                mz1list = []
+                for ZZ, flavours in zip(ZZlist,flavourslist):
+                    part_list1, part_list2 = set_flavours_lists(part_list_e, part_list_mu, flavours)
+                    mz1 = (part_list1[ZZcand[0]] + part_list1[ZZcand[1]]).m
+                    mz1list.append(mz1)
+                mz1min = min(mz1list, key=lambda x:abs(x-91.2))
+                idx = mz1list.index(mz1min)
+                return ZZ_list[idx], flavourslist[idx]
+
+        ##################### MAIN CODE TO FIND BEST ZZ CANDIDATE #####################
         #default values
+        isZZcand = 0
+        lep1 = lep2 = lep3 = lep4 = 0
+
         #list of candidates electrons/muons: 1 if candidate, 0 if
         candidate_es = np.ones(len(objects["e"]))
         candidate_mus = np.ones(len(objects["mu"]))
-        isZZcand = 0
-        isZ1e = isZ2e = -99
-        idxl1 = idxl2 = idxl3 = idxl4 = -99
-        lep1 = lep2 = lep3 = lep4 = 0
 
-        print("number of leptons: ", len(objects["e"]), len(objects["mu"])) 
-
-        #find candidate leptons
-        if check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=2) == True:
-            #if eta and pt cuts
-            for idx, el in enumerate(objects["e"]):
-                if not (abs(el.eta) < 2.5 and el.pt > 7):
-                    candidate_es[idx] = 0
-            for idx, mu in enumerate(objects["mu"]):
-                if not (abs(mu.eta) < 2.4 and mu.pt > 5):
-                    candidate_mus[idx] = 0
+        #find candidate leptons: eta and pt cuts (to be checked)
+        for idx, el in enumerate(objects["e"]):
+            if not (abs(el.eta) < 2.5 and el.pt > 7):
+                candidate_es[idx] = 0
+        for idx, mu in enumerate(objects["mu"]):
+            if not (abs(mu.eta) < 2.4 and mu.pt > 5):
+                candidate_mus[idx] = 0
 
         #find Z candidates
-        if check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=2) == True:
-            #Z1
-            idx_m_mu = idx_m_e = -1
-            best_m_e = best_m_mu = -1
+        e_Z_cand = find_Z_cand(candidate_es, objects["e"])
+        mu_Z_cand = find_Z_cand(candidate_mus, objects["mu"])
 
-            #electrons
-            nmax_e_sfos, cand_e_pos, cand_e_neg = find_SFOS(candidate_es, objects["e"], idxlists=True)
-            possible_z1_e = []
-            #if there is at least one SFOS electrons pair
-            if nmax_e_sfos >= 1:
-                for idx1 in cand_e_pos:
-                    el1 = (objects["e"])[idx1]
-                    for idx2 in cand_e_neg:
-                        el2 = (objects["e"])[idx2]
-                        #kinematical cuts
-                        mz1 = (el1+el2).m
-                        if(((el1.pt > 20 and el2.pt > 10) or (el2.pt > 20 and el1.pt > 10))
-                            and mz1 > 60):
-                            possible_z1_e.append([idx1, idx2, mz1])
+        #find ZZ candidates
+        ZZ_cand_ee_list, ZZ_cand_mm_list, ZZ_cand_em_list = find_ZZ_cand(e_Z_cand,mu_Z_cand)
 
-                #list of mz1 for SFOS pairs which pass the kinematical cuts
-                m_poss_z1_e = [item[2] for item in possible_z1_e]
-                #best SFOS is the one with mass closest to Z
-                best_m_e = min(m_poss_z1_e, key=lambda x:abs(x-91.2), default=-1)
-                #save the index of the best SFOS pair (if list is not empty) in possible_z1_e
-                if best_m_e != -1:
-                    idx_m_e = m_poss_z1_e.index(best_m_e)
+        #initialise lists for ZZ candidates which pass cuts, and keep track of flavours
+        ZZ_cands_final = []
+        ZZ_cands_final_flavours = []
 
-            #muons
-            nmax_mu_sfos, cand_mu_pos, cand_mu_neg = find_SFOS(candidate_mus, objects["mu"], idxlists=True)
-            possible_z1_mu = []
-            if nmax_mu_sfos >= 1:
-                for idx1 in cand_mu_pos:
-                    mu1 = (objects["mu"])[idx1]
-                    for idx2 in cand_mu_neg:
-                        mu2 = (objects["mu"])[idx2]
-                        #kinematical cuts
-                        mz1 = (mu1+mu2).m
-                        if(((mu1.pt > 20 and mu2.pt > 10) or (mu2.pt > 20 and mu1.pt > 10))
-                            and mz1 > 60):
-                            possible_z1_mu.append([idx1, idx2, mz1])
+        #same flavours, electrons
+        for ZZ_cand_ee in ZZ_cand_ee_list:
+            ZZ_cand_ee, swapped = Z1Z2_ordering(ZZ_cand_ee, objects["e"], objects["mu"], flavours="ee")
+            #apply cuts
+            if ZZ_cuts(ZZ_cand_ee, part_list_e, part_list_mu, flavours="ee", isSF=True) == True:
+                ZZ_cands_final.append(ZZ_cand_ee)
+                ZZ_cands_final_flavours.append("ee")
+        #same flavours, muons
+        for ZZ_cand_mm in ZZ_cand_mm_list:
+            ZZ_cand_mm, swapped = Z1Z2_ordering(ZZ_cand_mm, objects["e"], objects["mu"], flavours="mm")
+            #apply cuts
+            if ZZ_cuts(ZZ_candfind_ZZ_cand_mm, part_list_e, part_list_mu, flavours="mm", isSF=True) == True:
+                ZZ_cands_final.append(ZZ_cand_mm)
+                ZZ_cands_final_flavours.append("mm")
+        #different flavours
+        for ZZ_cand_em in ZZ_cand_em_list:
+            ZZ_cand_em, swapped = Z1Z2_ordering(ZZ_cand_em, objects["e"], objects["mu"], flavours="em")
+            #apply cuts, careful when swapping em/me
+            flavours_OF = "em" if swapped==False else "me"
+            if ZZ_cuts(ZZ_cand_em, part_list_e, part_list_mu, flavours=flavours_OF, isSF=False) == True:
+                ZZ_cands_final.append(ZZ_cand_em)
+                ZZ_cands_final_flavours.append(flavours_OF)
 
-                #best SFOS is the one with mass closest to Z
-                m_poss_z1_mu = [item[2] for item in possible_z1_mu]
-                best_m_mu = min(m_poss_z1_mu, key=lambda x:abs(x-91.2), default=-1)
-                if best_m_mu != -1:
-                    idx_m_mu = m_poss_z1_mu.index(best_m_mu)
+        #find final best ZZ candidate
+        #if more than one ZZ candidate is left: choose the one with Z1 mass closest to MZ
+        if len(ZZ_cands_final) > 0:
+            isZZcand = 1
+            ZZfinal, flavours = choose_final_ZZ(ZZ_cands_final, objects["e"], objects["mu"], ZZ_cands_final_flavours)
+            lep1, lep2, lep3, lep4 = ZZidx_to_leps(ZZfinal, objects["e"], objects["mu"], flavours)
 
-            #choose best z1 candidate (mass closest to Z)
-
-            #if at least one SFOS pair passes the kinematical cuts
-            if (idx_m_e != -1) or (idx_m_mu != -1):
-                #if candidate SFOS is mu+mu-
-                if(abs(best_m_mu-91.2) < abs(best_m_e-91.2)):
-                    isZ1e = 0
-                    #indices of z1 muons candidates
-                    idxl1 = possible_z1_mu[idx_m_mu][0]
-                    idxl2 = possible_z1_mu[idx_m_mu][1]
-                    #set to 0 the chosen z1 candidates, so they will not be available for z2
-                    candidate_mus[idxl1] = 0
-                    candidate_mus[idxl2] = 0
-                    #save leptons objects
-                    lep1 = (objects["mu"])[idxl1]
-                    lep2 = (objects["mu"])[idxl2]
-                #if candidate SFOS is e+e-
-                else:
-                    isZ1e = 1
-                    idxl1 = possible_z1_e[idx_m_e][0]
-                    idxl2 = possible_z1_e[idx_m_e][1]
-                    candidate_es[idxl1] = 0
-                    candidate_es[idxl2] = 0
-                    lep1 = (objects["e"])[idxl1]
-                    lep2 = (objects["e"])[idxl2]
-
-            print("mz1: ", (lep1+lep2).m)
-
-            #check if a SFOS pair candidate for z1 is found, and if there is still at least one possible SFOS pair (for Z2)
-            if idxl1 != -99 and idxl2 != -99 and check_ZZ_cand(candidate_es, objects["e"], candidate_mus, objects["mu"], nSFOS=1) == True:
-                #Z2
-                idx_pt_e = idx_pt_mu = -1
-                best_pt_e = best_pt_mu = -1
-
-                #electrons
-                nmax_e_sfos, cand_e_pos, cand_e_neg = find_SFOS(candidate_es, objects["e"], idxlists=True)
-                possible_z2_e = []
-                if nmax_e_sfos >= 1:
-                    print("e z2 found")
-                    for idx3 in cand_e_pos:
-                        el3 = (objects["e"])[idx3]
-                        for idx4 in cand_e_neg:
-                            el4 = (objects["e"])[idx4]
-                            #kinematical cuts
-                            mz2 = (el3+el4).m
-                            mzz = (lep1+lep2+el3+el4).m
-                            print("mz2: ", mz2, "; mzz: ", mzz)
-                            if(mz2 > 12 and mzz > 100 and mzz < 150):
-                                possible_z2_e.append([idx3, idx4, el3.pt+el4.pt])
-
-                    #choose z2 from electrons with highest pt
-                    pt_poss_z2_e = [item[2] for item in possible_z2_e]
-                    best_pt_e = max(pt_poss_z2_e, default=-1)
-                    if best_pt_e != -1:
-                        idx_pt_e = pt_poss_z2_e.index(best_pt_e)
-
-                #muons
-                nmax_mu_sfos, cand_mu_pos, cand_mu_neg = find_SFOS(candidate_mus, objects["mu"], idxlists=True)
-                possible_z2_mu = []
-                if nmax_mu_sfos >= 1:
-                    print("mu z2 found")
-                    for idx3 in cand_mu_pos:
-                        mu3 = (objects["mu"])[idx3]
-                        for idx4 in cand_mu_neg:
-                            mu4 = (objects["mu"])[idx4]
-                            #calculate stuff
-                            mz2 = (mu3+mu4).m
-                            mzz = (lep1+lep2+mu3+mu4).m
-                            print("mz2: ", mz2, "; mzz: ", mzz)
-                            if(mz2 > 12 and mzz > 100 and mzz < 150):
-                                possible_z2_mu.append([idx3, idx4, mu3.pt+mu4.pt])
-
-                    #choose z2 from muons with highest pt
-                    pt_poss_z2_mu = [item[2] for item in possible_z2_mu]
-                    best_pt_mu = max(pt_poss_z2_mu, default=-1)
-                    if best_pt_mu != -1:
-                        idx_pt_mu = pt_poss_z2_mu.index(best_pt_mu)
-
-                print(possible_z2_e, possible_z2_mu)
-
-                #choose best z2 candidate (highest pt)
-                if (idx_pt_e != -1) or (idx_pt_mu != -1):
-                    #if candidate SFOS is mu+mu-
-                    if(best_pt_mu > best_pt_e):
-                        isZ2e = 0
-                        #save the z2 candidates indices
-                        idxl3 = possible_z2_mu[idx_pt_mu][0]
-                        idxl4 = possible_z2_mu[idx_pt_mu][1]
-                        lep3 = (objects["mu"])[idxl3]
-                        lep4 = (objects["mu"])[idxl4]
-                        isZZcand = 1
-                    #if candidate SFOS is e+e-
-                    else:
-                        isZ2e = 1
-                        idxl3 = possible_z2_e[idx_pt_e][0]
-                        idxl4 = possible_z2_e[idx_pt_e][1]
-                        lep3 = (objects["e"])[idxl3]
-                        lep4 = (objects["e"])[idxl4]
-                        isZZcand = 1
 
         logger.debug("Value of isZZcand: %d", isZZcand)
-
-        #TODO
-        #iso cut
-        #primary vertex cut
-        #mz1,mz2
 
         #update objects dictionary
         objects.update(
