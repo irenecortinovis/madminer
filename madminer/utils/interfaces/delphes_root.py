@@ -175,6 +175,7 @@ def parse_delphes_root_file(
             #different flavour
             for Zcand1,Zcand2 in itertools.product(Z_cand_e_list,Z_cand_mu_list):
                 ZZ_cand_em.append([Zcand1[0], Zcand1[1], Zcand2[0], Zcand2[1]])
+
             return ZZ_cand_ee, ZZ_cand_mm, ZZ_cand_em
 
         #return the list of particles in the correct order:
@@ -231,8 +232,9 @@ def parse_delphes_root_file(
                 return False
             #leptons pt
             leps_pt_sort = sorted(leps, key=lambda x:x.pt)
-            if not (leps_pt_sort[0].pt > 20 and leps_pt_sort[1].pt > 10):
+            if not (leps_pt_sort[3].pt > 20 and leps_pt_sort[2].pt > 10):
                 #print("fail leptons pt cut")
+                #print("leptons pt: ", [a.pt for a in leps_pt_sort])
                 return False
             #OS invariant mass (pos, neg, pos, neg)
             mza = (leps[0]+leps[3]).m
@@ -275,7 +277,7 @@ def parse_delphes_root_file(
         ##################### MAIN CODE TO FIND BEST ZZ CANDIDATE #####################
         #default values
         isZZcand = 0
-        lep1 = 0; lep2 = 0; lep3 = 0; lep4 = 0
+        lep1 = MadMinerParticle(); lep2 = MadMinerParticle(); lep3 = MadMinerParticle(); lep4 = MadMinerParticle()
 
         #list of candidates electrons/muons: 1 if candidate, 0 if not
         candidate_es = np.ones(len(objects["e"]))
@@ -326,17 +328,41 @@ def parse_delphes_root_file(
 
         #find final best ZZ candidate
         #if more than one ZZ candidate is left: choose the one with Z1 mass closest to MZ
+
+        def printlep(lep, name):
+            #print(name, " = [", lep.px, ",", lep.py, ",", lep.pz, "]")
+            print("[", lep.e,",", lep.px, ",", lep.py, ",", lep.pz, "]")
+            return
+          
+
         if len(ZZ_cands_final) > 0:
             isZZcand = 1
             ZZfinal, flavours = choose_final_ZZ(ZZ_cands_final, objects["e"], objects["mu"], ZZ_cands_final_flavours)
             lep1, lep2, lep3, lep4 = ZZidx_to_leps(ZZfinal, objects["e"], objects["mu"], flavours)
+            #print("chosen leptons: (flavours", flavours)
+            #for lep, nlep in zip([lep1,lep2,lep3,lep4],["a","b","c","d"]):
+                #printlep(lep, nlep)
+            #print((lep1+lep2+lep3+lep4).m)
+            #print((lep1+lep2).m, (lep3+lep4).m)
+
+            #print("original leptons: e")
+            #for idx, lep in enumerate(objects["e"]):
+                #nlep = "ne" + str(idx)
+                #printlep(lep, nlep)
+            #print("original leptons: mu")
+            #for idx, lep in enumerate(objects["mu"]):
+                #nlep = "nmu" + str(idx)
+                #printlep(lep, nlep)
 
 
         #logger.debug("Value of isZZcand: %d", isZZcand)
         #debugging
+        #print(len(objects["e"]), len(objects["mu"]))
+
         #if(len(ZZ_cand_ee_list) + len(ZZ_cand_mm_list) + len(ZZ_cand_em_list)) >= 1:
+            #print(len(objects["e"]), len(objects["mu"]))
             #if isZZcand != 1:
-                #print("at least 2 and 2 but no ZZ cand")
+                #print("no ZZ cand found after cuts")
             #else:
                 #print("ok candidate and found")
 
@@ -350,7 +376,6 @@ def parse_delphes_root_file(
                 "lep4ZZ": lep4,
             }
         )
-
         return objects
 
     # Observations
