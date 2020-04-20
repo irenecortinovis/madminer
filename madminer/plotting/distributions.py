@@ -284,7 +284,7 @@ def plot_distributions(
 
         # Figure out x range
         xmins, xmaxs = [], []
-        for theta_matrix in theta_matrices:
+        '''for theta_matrix in theta_matrices:
             x_small = all_x[:n_events_for_range]
             weights_small = mdot(theta_matrix, all_weights_benchmarks[:n_events_for_range])
 
@@ -294,14 +294,15 @@ def plot_distributions(
             xmin -= xwidth * 0.1
             xmax += xwidth * 0.1
 
-            xmin = max(xmin, np.min(all_x[:, i_obs]))
-            xmax = min(xmax, np.max(all_x[:, i_obs]))
-
-            xmins.append(xmin)
-            xmaxs.append(xmax)
+            xmin = max(xmin, np.nanmin(all_x[:, i_obs]))
+            xmax = min(xmax, np.nanmax(all_x[:, i_obs]))
+            
 
         xmin = min(xmins)
         xmax = max(xmaxs)
+        '''#try
+        xmin = np.nanmin(all_x[:,i_obs])
+        xmax = np.nanmax(all_x[:,i_obs])
         x_range = (xmin, xmax)
 
         logger.debug("Ranges for observable %s: min = %s, max = %s", xlabel, xmins, xmaxs)
@@ -391,6 +392,7 @@ def plot_distributions(
             plt.ylim(0.0, None)
 
     plt.tight_layout()
+    fig.savefig("plot_distr.png")
 
     return fig
 
