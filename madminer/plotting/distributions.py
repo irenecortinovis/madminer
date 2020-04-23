@@ -281,28 +281,32 @@ def plot_distributions(
 
     for i_panel, (i_obs, xlabel) in enumerate(zip(observable_indices, observable_labels)):
         logger.debug("Plotting panel %s: observable %s, label %s", i_panel, i_obs, xlabel)
-
-        # Figure out x range
+        
         xmins, xmaxs = [], []
-        '''for theta_matrix in theta_matrices:
+        for theta_matrix in theta_matrices:
+
             x_small = all_x[:n_events_for_range]
             weights_small = mdot(theta_matrix, all_weights_benchmarks[:n_events_for_range])
+            
+            x_small_new = np.array(np.delete(x_small[:,i_obs], np.argwhere(np.isnan(x_small[:,i_obs]))))
+            weights_small_new = np.array(np.delete(weights_small, np.argwhere(np.isnan(x_small[:,i_obs]))))
 
-            xmin = weighted_quantile(x_small[:, i_obs], quantiles_for_range[0], weights_small)
-            xmax = weighted_quantile(x_small[:, i_obs], quantiles_for_range[1], weights_small)
+            xmin = weighted_quantile(x_small_new, quantiles_for_range[0], weights_small_new)
+            xmax = weighted_quantile(x_small_new, quantiles_for_range[1], weights_small_new)
             xwidth = xmax - xmin
             xmin -= xwidth * 0.1
             xmax += xwidth * 0.1
+            
+            
 
             xmin = max(xmin, np.nanmin(all_x[:, i_obs]))
             xmax = min(xmax, np.nanmax(all_x[:, i_obs]))
-            
+
+            xmins.append(xmin)
+            xmaxs.append(xmax)
 
         xmin = min(xmins)
         xmax = max(xmaxs)
-        '''#try
-        xmin = np.nanmin(all_x[:,i_obs])
-        xmax = np.nanmax(all_x[:,i_obs])
         x_range = (xmin, xmax)
 
         logger.debug("Ranges for observable %s: min = %s, max = %s", xlabel, xmins, xmaxs)
