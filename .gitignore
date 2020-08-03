@@ -144,3 +144,7 @@ patches/
 black.sh
 run_sphinx.sh
 publish.sh
+
+# PDFs and PNGs
+*.pdf
+*.png
