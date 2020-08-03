@@ -1,0 +1,2 @@
+import model SMEFTsim_A_U35_alphaScheme_UFO_v2_1-massless_chg_chgt
+generate g g > h QCD=2 QED=1 NP=1, (h > z z QCD=0 QED=1 NP=0, (z > l+ l- QCD=0 QED=1))

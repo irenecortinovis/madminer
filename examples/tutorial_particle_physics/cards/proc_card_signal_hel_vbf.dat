@@ -1,0 +1,2 @@
+import model HEL_UFO
+generate u d > u d h NP<=1 QCD=0 QED=3, (h > z z QCD=0 QED=2 NP=0, (z > l+ l- QCD=0 QED=2 NP=0))

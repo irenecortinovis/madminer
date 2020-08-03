@@ -1,0 +1,2 @@
+import model HEL_UFO
+generate g g > h NP<=1, (h > z z NP=0, (z > l+ l- NP=0))

@@ -26,10 +26,9 @@
 #*********************************************************************
 # Number of events and rnd seed                                      *
 # Warning: Do not generate more than 1M events in a single run       *
-# If you want to run Pythia, avoid more than 50k events in a run.    *
 #*********************************************************************
-1000000 = nevents ! Number of unweighted events requested 
-  0    = iseed   ! rnd seed (0=assigned automatically=default))
+  500000 = nevents ! Number of unweighted events requested 
+  0   = iseed   ! rnd seed (0=assigned automatically=default))
 #*********************************************************************
 # Collider type and energy                                           *
 # lpp: 0=No PDF, 1=proton, -1=antiproton, 2=photon from proton,      *
@@ -63,7 +62,7 @@
   -1.0 = time_of_flight ! threshold (in mm) below which the invariant livetime is not written (-1 means not written)
   3.0 = lhe_version       ! Change the way clustering information pass to shower.        
   True = clusinfo         ! include clustering tag in output
-  sum =  event_norm       ! average/sum. Normalization of the weight in the LHEF
+  average =  event_norm       ! average/sum. Normalization of the weight in the LHEF
 
 #*********************************************************************
 # Matching parameter (MLM only)
@@ -72,7 +71,7 @@
  1.0 = alpsfact         ! scale factor for QCD emission vx
  False = chcluster        ! cluster only according to channel diag
  4 = asrwgtflavor     ! highest quark flavor for a_s reweight
- False  = auto_ptj_mjj  ! Automatic setting of ptj and mjj if xqcut >0
+ True  = auto_ptj_mjj  ! Automatic setting of ptj and mjj if xqcut >0
                                    ! (turn off for VBF and single top processes) 
  0.0   = xqcut   ! minimum kt jet measure between partons
 #*********************************************************************
@@ -98,7 +97,7 @@
 #*********************************************************************
 # BW cutoff (M+/-bwcutoff*Gamma) ! Define on/off-shell for "$" and decay  
 #*********************************************************************
-  100.0  = bwcutoff      ! (M+/-bwcutoff*Gamma)
+  150.0  = bwcutoff      ! (M+/-bwcutoff*Gamma)
 #*********************************************************************
 # Apply pt/E/eta/dr/mij/kt_durham cuts on decay products or not
 # (note that etmiss/ptll/ptheavy/ht/sorted cuts always apply)
@@ -121,19 +120,9 @@
  -1.0  = missetmax ! maximum missing Et (sum of neutrino's momenta)
  {} = pt_min_pdg ! pt cut for other particles (use pdg code). Applied on particle and anti-particle
  {}	= pt_max_pdg ! pt cut for other particles (syntax e.g. {6: 100, 25: 50}) 
-#*********************************************************************
-# Minimum and maximum E's (in the center of mass frame)              *
-#*********************************************************************
-  0.0  = ej     ! minimum E for the jets 
-  0.0  = eb     ! minimum E for the b 
-  0.0  = ea     ! minimum E for the photons 
-  0.0  = el     ! minimum E for the charged leptons 
-  -1.0   = ejmax ! maximum E for the jets
- -1.0   = ebmax ! maximum E for the b
- -1.0   = eamax ! maximum E for the photons
- -1.0   = elmax ! maximum E for the charged leptons
- {} = e_min_pdg ! E cut for other particles (use pdg code). Applied on particle and anti-particle
- {} = e_max_pdg ! E cut for other particles (syntax e.g. {6: 100, 25: 50}) 
+#
+# For display option for energy cut in the partonic center of mass frame type 'update ecut'
+#
 #*********************************************************************
 # Maximum and minimum absolute rapidity (for max, -1 means no cut)   *
 #*********************************************************************
@@ -274,7 +263,7 @@
 # Store info for systematics studies                                 *
 # WARNING: Do not use for interference type of computation           *
 #*********************************************************************
-   False  = use_syst      ! Enable systematics studies
+   True  = use_syst      ! Enable systematics studies
 #
 systematics = systematics_program ! none, systematics [python], SysCalc [depreceted, C++]
 ['--mur=0.5,1,2', '--muf=0.5,1,2', '--pdf=errorset'] = systematics_arguments ! see: https://cp3.irmp.ucl.ac.be/projects/madgraph/wiki/Systematics#Systematicspythonmodule
