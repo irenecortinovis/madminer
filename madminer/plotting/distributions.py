@@ -396,7 +396,7 @@ def plot_distributions(
             plt.ylim(0.0, None)
 
     plt.tight_layout()
-    fig.savefig("plot_distr.png")
+    fig.savefig("plot_distr.pdf")
 
     return fig
 
@@ -536,4 +536,5 @@ def plot_histograms(
                 cbar.set_label("Likelihood")
 
     plt.tight_layout()
+    fig.savefig("limits_hist.pdf")
     return fig

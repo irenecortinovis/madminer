@@ -83,6 +83,7 @@ def plot_2d_morphing_basis(
     plt.ylim(yrange[0], yrange[1])
 
     plt.tight_layout()
+    fig.savefig("morphing.pdf")
 
     return fig
 

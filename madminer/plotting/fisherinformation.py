@@ -213,6 +213,7 @@ def plot_fisher_information_contours_2d(
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.tight_layout()
+        fig.savefig("fi_2d.pdf")
         return fig
     else:
         return ax
@@ -246,7 +247,6 @@ def plot_fisherinfo_barplot(
         Plot as Matplotlib Figure instance.
 
     """
-
     # Prepare data
     if determinant_indices is None:
         matrices_for_determinants = fisher_information_matrices
@@ -258,7 +258,8 @@ def plot_fisherinfo_barplot(
     exponent_lower = 1.0 / float(size_lower)
 
     determinants = [np.linalg.det(m) ** exponent_lower for m in matrices_for_determinants]
-
+    for this_label, this_determinant in zip(labels,determinants):
+        print(this_label, this_determinant) 
     assert len(determinants) == len(labels)
     n_entries = len(determinants)
 
@@ -311,7 +312,7 @@ def plot_fisherinfo_barplot(
     # Plot eigenvalues
     for i in range(n_entries):
         for eigenvalue, composition in zip(eigenvalues[i], eigenvalues_composition[i]):
-            # Gap sizing
+            #1 Gap sizing
             n_gaps = -1
             minimal_fraction_for_plot = 0.01
             for fraction in composition:
@@ -364,6 +365,7 @@ def plot_fisherinfo_barplot(
     ax3.set_ylabel(r"$(\det \ I_{ij})^{1/" + str(size_lower) + r"}$")
 
     plt.tight_layout()
+    fig.savefig("fi_barplot.pdf")
     return fig
 
 
@@ -488,6 +490,7 @@ def plot_distribution_of_information(
         color=xs_color,
         linewidth=xs_linewidth,
         linestyle=xs_linestyle,
+        label="cross section SM",
     )
 
     if norm_xsec:
@@ -495,10 +498,11 @@ def plot_distribution_of_information(
     else:
         ax1.set_ylabel(r"$\sigma$ [pb/bin]")
     ax1.set_xlim([xmin, xmax])
-    ax1.set_ylim([0.0, max(xsec_norm) * 1.05])
+    #ax1.set_ylim([0.0, max(xsec_norm) * 1.05])
     ax1.set_xlabel(xlabel)
     for tl in ax1.get_yticklabels():
         tl.set_color(xs_color)
+    ax1.legend()
 
     # det plot
     ax2 = ax1.twinx()
@@ -513,6 +517,7 @@ def plot_distribution_of_information(
             color=det_aux_color,
             linewidth=det_aux_linewidth,
             linestyle=det_aux_linestyle,
+            label="rate info",
         )
 
     ax2.hist(
@@ -535,12 +540,16 @@ def plot_distribution_of_information(
         color=det_color,
         linewidth=det_linewidth,
         linestyle=det_linestyle,
+        label="full info",
     )
+    ax2.legend(loc='upper left')
 
     ax2.set_xlim([xmin, xmax])
-    ax2.set_ylim([0.0, max(determinants) * 1.1])
+    #ax2.set_ylim([0.0, max(determinants) * 1.1])
     ax2.set_ylabel(r"$(\det \; I_{ij})^{1/" + str(size) + "}$", color=det_color)
     for tl in ax2.get_yticklabels():
         tl.set_color(det_color)
+        
+    fig.savefig("fi_distr.pdf")
 
     return fig
