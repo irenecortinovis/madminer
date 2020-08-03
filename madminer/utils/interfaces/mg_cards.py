@@ -50,6 +50,7 @@ def export_param_card(benchmark, parameters, param_card_template_file, mg_proces
 
                 if lha_id == parameter_lha_id:
                     lines[i] = "    " + str(parameter_lha_id) + "    " + str(parameter_value) + "    # MadMiner"
+                    #lines[i] = "  " + str(parameter_lha_id) + " " + str(parameter_value) + "    # MadMiner"
                     changed_line = True
                     break
 
